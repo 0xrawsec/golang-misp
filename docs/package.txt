@@ -1,0 +1,218 @@
+use 'godoc cmd/misp' for documentation on the misp command 
+
+PACKAGE DOCUMENTATION
+
+package misp
+    import "misp"
+
+
+VARIABLES
+
+var (
+    // ErrUnknownProtocol : raised when bad protocol specified
+    ErrUnknownProtocol = errors.New("Unknown protocol")
+)
+
+TYPES
+
+type EmptyMispResponse struct{}
+
+func (emr EmptyMispResponse) Iter() chan MispObject
+    Iter : MispResponse implementation
+
+type MispAttribute struct {
+    ID             string `json:"id"`
+    EventID        string `json:"event_id"`
+    UUID           string `json:"uuid"`
+    SharingGroupID string `json:"sharing_group_id"`
+    StrTimestamp   string `json:"timestamp"`
+    Distribution   string `json:"distribution"`
+    Category       string `json:"category"`
+    Type           string `json:"type"`
+    Value          string `json:"value"`
+    ToIDS          bool   `json:"to_ids"`
+    Deleted        bool   `json:"deleted"`
+    Comment        string `json:"comment"`
+}
+    MispAttribute : define structure of attribute object returned by API
+
+func (ma MispAttribute) Timestamp() time.Time
+    Timestamp : return Time struct according to a string time
+
+type MispAttributeDict struct {
+    Attribute []MispAttribute `json:"Attribute"`
+}
+    MispAttributeDict : itermediate structure to handle MISP attribute
+    search
+
+type MispAttributeQuery struct {
+    Value    string `json:"value"`
+    Type     string `json:"type"`
+    Category string `json:"category"`
+    Org      string `json:"org"`
+    Tags     string `json:"tags"`
+    From     string `json:"from"`
+    To       string `json:"to"`
+    Last     string `json:"last"`
+    EventID  string `json:"eventid"`
+    UUID     string `json:"uuid"`
+}
+
+func (maq MispAttributeQuery) Prepare() (j []byte)
+    Prepare : MispQuery Implementation
+
+type MispAttributeResponse struct {
+    Response MispAttributeDict `json:"response"`
+}
+    MispAttributeResponse : API response when attribute query is done
+
+func (mar MispAttributeResponse) Iter() (moc chan MispObject)
+    Iter : MispResponse implementation
+
+type MispCon struct {
+    Proto      string
+    Host       string
+    APIKey     string
+    RestAPIURL string
+    Client     *http.Client
+}
+
+func NewCon(proto, host, apiKey, restApiUrl string) MispCon
+    NewCon : create a new MispCon struct return (MispcCon)
+
+func NewInsecureCon(proto, host, apiKey, restApiUrl string) MispCon
+    NewInsecureCon : Return a new MispCon with insecured TLS connection
+    settings return (MispCon)
+
+func (mc MispCon) Search(mq MispQuery) MispResponse
+    Search : Issue a search and return a MispObject @mq : a struct
+    implementing MispQuery interface return (MispObject)
+
+type MispConfig struct {
+    Proto  string
+    Host   string
+    APIKey string
+    APIURL string
+}
+    MispConfig structure
+
+func LoadConfig(path string) (mc MispConfig)
+    LoadConfig : load a configuration file from path return (MispConfig)
+
+type MispError struct {
+    StatusCode int
+    Message    string
+}
+
+func (me MispError) Error() string
+
+type MispEvent struct {
+    ID                 string             `json:"id"`
+    OrgcID             string             `json:"orgc_id"`
+    OrgID              string             `json:"org_id"`
+    Date               string             `json:"date"`
+    ThreatLevelID      string             `json:"threat_level_id"`
+    Info               string             `json:"info"`
+    Published          bool               `json:"published"`
+    UUID               string             `json:"uuid"`
+    AttributeCount     string             `json:"attribute_count"`
+    Analysis           string             `json:"analysis"`
+    StrTimestamp       string             `json:"timestamp"`
+    Distribution       string             `json:"distribution"`
+    ProposalEmailLock  bool               `json:"proposal_email_lock"`
+    Locked             bool               `json:"locked"`
+    PublishedTimestamp string             `json:"publish_timestamp"`
+    SharingGroupID     string             `json:"sharing_group_id"`
+    Org                Org                `json:"Org"`
+    Orgc               Org                `json:"Orgc"`
+    Attribute          []MispAttribute    `json:"Attribute"`
+    ShadowAttribute    []MispAttribute    `json:"ShadowAttribute"`
+    RelatedEvent       []MispRelatedEvent `json:"RelatedEvent"`
+    Galaxy             []MispRelatedEvent `json:"Galaxy"`
+}
+    MispEvent definition
+
+func (me MispEvent) Timestamp() time.Time
+    Timestamp : return Time struct according to a string time
+
+type MispEventDict struct {
+    Event MispEvent `json:"Event"`
+}
+    MispEventDict : intermediate structure to handle properly MISP API
+    results
+
+type MispEventQuery struct {
+    Value           string `json:"value"`
+    Type            string `json:"type"`
+    Category        string `json:"category"`
+    Org             string `json:"org"`
+    Tags            string `json:"tags"`
+    QuickFilter     string `json:"quickfilter"`
+    From            string `json:"from"`
+    To              string `json:"to"`
+    Last            string `json:"last"`
+    EventID         string `json:"eventid"`
+    WithAttachments string `json:"withAttachments"`
+    Metadata        string `json:"metadata"`
+    SearchAll       int8   `json:"searchall"`
+}
+    MispEventQuery : defines the structure of query to event search API
+
+func (meq MispEventQuery) Prepare() (j []byte)
+    Prepare : MispQuery Implementation
+
+type MispEventResponse struct {
+    Response []MispEventDict `json:"response"`
+}
+    MispEventResponse : intermediate structure to handle properly MISP API
+    results
+
+func (mer MispEventResponse) Iter() (moc chan MispObject)
+    Iter : MispResponse implementation
+
+type MispObject interface{}
+
+type MispQuery interface {
+    // Prepare the query and returns a JSON object in a form of a byte array
+    Prepare() []byte
+}
+
+type MispRelatedEvent struct {
+    ID            string `json:"id"`
+    Date          string `json:"date"`
+    ThreatLevelID string `json:"threat_level_id"`
+    Info          string `json:"info"`
+    Published     bool   `json:"published"`
+    UUID          string `json:"uuid"`
+    Analysis      string `json:"analysis"`
+    StrTimestamp  string `json:"timestamp"`
+    Distribution  string `json:"distribution"`
+    OrgID         string `json:"org_id"`
+    OrgcID        string `json:"orgc_id"`
+    Org           Org    `json:"Org"`
+    Orgc          Org    `json:"Orgc"`
+}
+    MispRelatedEvent definition
+
+func (mre *MispRelatedEvent) Timestamp() time.Time
+    Timestamp : return Time struct according to a string time
+
+type MispRequest struct {
+    Request MispQuery `json:"request"`
+}
+
+type MispResponse interface {
+    Iter() chan MispObject
+}
+
+type Org struct {
+    ID   string `json:"id"`
+    Name string `json:"name"`
+    UUID string `json:"uuid"`
+}
+    Org definition
+
+SUBDIRECTORIES
+
+	test
+

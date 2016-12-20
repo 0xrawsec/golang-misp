@@ -1,0 +1,6 @@
+{
+  "protocol" :"https or http",
+  "host" : "misp.hostname",
+  "api-key" :"your-api-key",
+  "api-url" : "/restSearch/download/"
+}
