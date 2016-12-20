@@ -22,7 +22,8 @@ go test -v
 
 # Documentation
 
-Install the golang-misp package into your go project.
+Install the golang-misp package into your go project and issue the following
+command.
 
 ```
 go doc misp
