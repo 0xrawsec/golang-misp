@@ -275,7 +275,7 @@ func logRequest(req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	log.Infof("Proxy: %s", proxyURL.String())
+	log.Infof("Proxy: %s", proxyURL)
 	log.Infof("%s - %s %s", req.RemoteAddr, req.Method, req.URL)
 	log.Infof("Header: %s", req.Header)
 }
