@@ -121,33 +121,42 @@ func (mre *MispRelatedEvent) Timestamp() time.Time {
 
 // MispEvent definition
 type MispEvent struct {
-	ID                 string             `json:"id"`
-	OrgcID             string             `json:"orgc_id"`
-	OrgID              string             `json:"org_id"`
-	Date               string             `json:"date"`
-	ThreatLevelID      string             `json:"threat_level_id"`
-	Info               string             `json:"info"`
-	Published          bool               `json:"published"`
-	UUID               string             `json:"uuid"`
-	AttributeCount     string             `json:"attribute_count"`
-	Analysis           string             `json:"analysis"`
-	StrTimestamp       string             `json:"timestamp"`
-	Distribution       string             `json:"distribution"`
-	ProposalEmailLock  bool               `json:"proposal_email_lock"`
-	Locked             bool               `json:"locked"`
-	PublishedTimestamp string             `json:"publish_timestamp"`
-	SharingGroupID     string             `json:"sharing_group_id"`
-	Org                Org                `json:"Org"`
-	Orgc               Org                `json:"Orgc"`
-	Attribute          []MispAttribute    `json:"Attribute"`
-	ShadowAttribute    []MispAttribute    `json:"ShadowAttribute"`
-	RelatedEvent       []MispRelatedEvent `json:"RelatedEvent"`
-	Galaxy             []MispRelatedEvent `json:"Galaxy"`
+	ID                    string             `json:"id"`
+	OrgcID                string             `json:"orgc_id"`
+	OrgID                 string             `json:"org_id"`
+	Date                  string             `json:"date"`
+	ThreatLevelID         string             `json:"threat_level_id"`
+	Info                  string             `json:"info"`
+	Published             bool               `json:"published"`
+	UUID                  string             `json:"uuid"`
+	AttributeCount        string             `json:"attribute_count"`
+	Analysis              string             `json:"analysis"`
+	StrTimestamp          string             `json:"timestamp"`
+	Distribution          string             `json:"distribution"`
+	ProposalEmailLock     bool               `json:"proposal_email_lock"`
+	Locked                bool               `json:"locked"`
+	StrPublishedTimestamp string             `json:"publish_timestamp"`
+	SharingGroupID        string             `json:"sharing_group_id"`
+	Org                   Org                `json:"Org"`
+	Orgc                  Org                `json:"Orgc"`
+	Attribute             []MispAttribute    `json:"Attribute"`
+	ShadowAttribute       []MispAttribute    `json:"ShadowAttribute"`
+	RelatedEvent          []MispRelatedEvent `json:"RelatedEvent"`
+	Galaxy                []MispRelatedEvent `json:"Galaxy"`
 }
 
 // Timestamp : return Time struct according to a string time
 func (me MispEvent) Timestamp() time.Time {
 	sec, err := strconv.ParseInt(me.StrTimestamp, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return time.Unix(sec, 0)
+}
+
+// PublishedTimestamp : return Time struct according to a string time
+func (me MispEvent) PublishedTimestamp() time.Time {
+	sec, err := strconv.ParseInt(me.StrPublishedTimestamp, 10, 64)
 	if err != nil {
 		panic(err)
 	}
