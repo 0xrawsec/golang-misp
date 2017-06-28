@@ -3,8 +3,6 @@ package misp
 import (
 	"bytes"
 	"crypto/tls"
-	"dependencies/toolbox/config"
-	"dependencies/toolbox/utils/log"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +11,9 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/0xrawsec/golang-utils/config"
+	"github.com/0xrawsec/golang-utils/log"
 )
 
 type MispError struct {

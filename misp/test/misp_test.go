@@ -1,9 +1,10 @@
 package main
 
 import (
-	"dependencies/toolbox/utils/log"
 	"misp"
 	"testing"
+
+	"github.com/0xrawsec/golang-utils/log"
 )
 
 var (
