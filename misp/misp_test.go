@@ -23,7 +23,11 @@ func init() {
 func TestSimpleAttributeSearch(t *testing.T) {
 	con := NewInsecureCon(proto, host, key)
 	ma := MispAttributeQuery{Last: "1d"}
-	for a := range con.Search(ma).Iter() {
+	mr, err := con.Search(ma)
+	if err != nil {
+		t.Errorf("Failed to search: %s", err)
+	}
+	for a := range mr.Iter() {
 		t.Log(a.(MispAttribute).Timestamp())
 		t.Log(a)
 	}
@@ -32,7 +36,11 @@ func TestSimpleAttributeSearch(t *testing.T) {
 func TestSimpleEventSearch(t *testing.T) {
 	con := NewInsecureCon(proto, host, key)
 	me := MispEventQuery{Last: "1d"}
-	for e := range con.Search(me).Iter() {
+	mr, err := con.Search(me)
+	if err != nil {
+		t.Errorf("Failed to search: %s", err)
+	}
+	for e := range mr.Iter() {
 		t.Log(e.(MispEvent).Timestamp())
 		t.Log(e)
 	}

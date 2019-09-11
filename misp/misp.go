@@ -406,36 +406,38 @@ func (mc MispCon) postSearch(kind string, mq *MispQuery) ([]byte, error) {
 
 // Search : Issue a search and return a MispObject
 // @mq : a struct implementing MispQuery interface
-// return (MispObject)
-func (mc MispCon) Search(mq MispQuery) MispResponse {
+// return (MispObject, error)
+func (mc MispCon) Search(mq MispQuery) (MispResponse, error) {
 	switch mq.(type) {
 	case MispAttributeQuery:
 		mar := MispAttributeResponse{}
 		bResp, err := mc.postSearch("attributes", &mq)
 		if err != nil {
-			log.Error(err)
-			break
+			log.Debugf("Error: %s", err)
+			return EmptyMispResponse{}, err
 		}
 		err = json.Unmarshal(bResp, &mar)
 		if err != nil {
-			panic(err)
+			log.Debug(string(bResp))
+			return mar, err
 		}
-		return mar
+		return mar, nil
 
 	case MispEventQuery:
 		mer := MispEventResponse{}
 		bResp, err := mc.postSearch("events", &mq)
 		if err != nil {
-			log.Error(err)
-			break
+			log.Debugf("Error: %s", err)
+			return EmptyMispResponse{}, err
 		}
 		err = json.Unmarshal(bResp, &mer)
 		if err != nil {
-			panic(err)
+			log.Debug(string(bResp))
+			return mer, err
 		}
-		return mer
+		return mer, nil
 	}
-	return EmptyMispResponse{}
+	return EmptyMispResponse{}, fmt.Errorf("Empty Response")
 }
 
 // TextExport text export API wrapper https://<misp url>/attributes/text/download/

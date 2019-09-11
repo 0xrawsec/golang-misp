@@ -6,7 +6,7 @@ cases.
 # Installation
 
 ```
-get github.com/qjerome/golang-misp
+get -u github.com/0xrawsec/golang-misp
 ```
 
 # Testing
