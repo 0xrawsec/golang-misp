@@ -6,14 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/0xrawsec/golang-utils/config"
+	"github.com/0xrawsec/golang-utils/datastructs"
 	"github.com/0xrawsec/golang-utils/log"
+	"github.com/0xrawsec/golang-utils/readers"
 )
 
 type MispError struct {
@@ -26,11 +31,10 @@ func (me MispError) Error() string {
 }
 
 type MispCon struct {
-	Proto      string
-	Host       string
-	APIKey     string
-	RestAPIURL string
-	Client     *http.Client
+	Proto  string
+	Host   string
+	APIKey string
+	Client *http.Client
 }
 
 type MispRequest struct {
@@ -63,19 +67,19 @@ func (emr EmptyMispResponse) Iter() chan MispObject {
 
 // MispEventQuery : defines the structure of query to event search API
 type MispEventQuery struct {
-	Value           string `json:"value"`
-	Type            string `json:"type"`
-	Category        string `json:"category"`
-	Org             string `json:"org"`
-	Tags            string `json:"tags"`
-	QuickFilter     string `json:"quickfilter"`
-	From            string `json:"from"`
-	To              string `json:"to"`
-	Last            string `json:"last"`
-	EventID         string `json:"eventid"`
-	WithAttachments string `json:"withAttachments"`
-	Metadata        string `json:"metadata"`
-	SearchAll       int8   `json:"searchall"`
+	Value           string `json:"value,omitempty"`
+	Type            string `json:"type,omitempty"`
+	Category        string `json:"category,omitempty"`
+	Org             string `json:"org,omitempty"`
+	Tags            string `json:"tags,omitempty"`
+	QuickFilter     string `json:"quickfilter,omitempty"`
+	From            string `json:"from,omitempty"`
+	To              string `json:"to,omitempty"`
+	Last            string `json:"last,omitempty"`
+	EventID         string `json:"eventid,omitempty"`
+	WithAttachments string `json:"withAttachments,omitempty"`
+	Metadata        string `json:"metadata,omitempty"`
+	SearchAll       int8   `json:"searchall,omitempty"`
 }
 
 // Prepare : MispQuery Implementation
@@ -191,16 +195,16 @@ func (mer MispEventResponse) Iter() (moc chan MispObject) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type MispAttributeQuery struct {
-	Value    string `json:"value"`
-	Type     string `json:"type"`
-	Category string `json:"category"`
-	Org      string `json:"org"`
-	Tags     string `json:"tags"`
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Last     string `json:"last"`
-	EventID  string `json:"eventid"`
-	UUID     string `json:"uuid"`
+	Value    string `json:"value,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Category string `json:"category,omitempty"`
+	Org      string `json:"org,omitempty"`
+	Tags     string `json:"tags,omitempty"`
+	From     string `json:"from,omitempty"`
+	To       string `json:"to,omitempty"`
+	Last     string `json:"last,omitempty"`
+	EventID  string `json:"eventid,omitempty"`
+	UUID     string `json:"uuid,omitempty"`
 }
 
 // Prepare : MispQuery Implementation
@@ -268,7 +272,6 @@ type MispConfig struct {
 	Proto  string
 	Host   string
 	APIKey string
-	APIURL string
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -280,14 +283,38 @@ var (
 	ErrUnknownProtocol = errors.New("Unknown protocol")
 )
 
+func headerSortedKeys(d http.Header) (sk []string) {
+	sk = make([]string, 0, len(d))
+	for k := range d {
+		sk = append(sk, k)
+	}
+	sort.Strings(sk)
+	return
+}
+
 func logRequest(req *http.Request) {
 	proxyURL, err := http.ProxyFromEnvironment(req)
 	if err != nil {
 		panic(err)
 	}
-	log.Infof("Proxy: %s", proxyURL)
-	log.Infof("%s - %s %s", req.RemoteAddr, req.Method, req.URL)
-	log.Infof("Header: %s", req.Header)
+	body, _ := req.GetBody()
+	log.Debugf("Proxy: %s", proxyURL)
+	log.Debugf("%s %s", req.Method, req.URL)
+	log.Debug("Header:")
+	for _, sk := range headerSortedKeys(req.Header) {
+		for _, v := range req.Header[sk] {
+			log.Debugf("        %s: %v", sk, v)
+		}
+	}
+	log.Debugf("Body: %s", string(readAllOrPanic(body)))
+}
+
+func readAllOrPanic(r io.Reader) []byte {
+	respBody, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(err)
+	}
+	return respBody
 }
 
 // LoadConfig : load a configuration file from path
@@ -300,13 +327,12 @@ func LoadConfig(path string) (mc MispConfig) {
 	mc.Proto = conf.GetRequiredString("protocol")
 	mc.Host = conf.GetRequiredString("host")
 	mc.APIKey = conf.GetRequiredString("api-key")
-	mc.APIURL = conf.GetRequiredString("api-url")
 	return
 }
 
 // NewInsecureCon : Return a new MispCon with insecured TLS connection settings
 // return (MispCon)
-func NewInsecureCon(proto, host, apiKey, restApiUrl string) MispCon {
+func NewInsecureCon(proto, host, apiKey string) MispCon {
 	if proto != "http" && proto != "https" {
 		log.Errorf("%s : only http and https protocols are allowed", ErrUnknownProtocol.Error())
 		panic(ErrUnknownProtocol)
@@ -324,42 +350,52 @@ func NewInsecureCon(proto, host, apiKey, restApiUrl string) MispCon {
 		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
 	}
 	c := http.Client{Transport: noCertTransport}
-	return MispCon{proto, host, apiKey, restApiUrl, &c}
+	return MispCon{proto, host, apiKey, &c}
 }
 
 // NewCon : create a new MispCon struct
 // return (MispcCon)
-func NewCon(proto, host, apiKey, restApiUrl string) MispCon {
+func NewCon(proto, host, apiKey string) MispCon {
 	if proto != "http" && proto != "https" {
 		log.Errorf("%s : only http and https protocols are allowed", ErrUnknownProtocol.Error())
 		panic(ErrUnknownProtocol)
 	}
-	return MispCon{proto, host, apiKey, restApiUrl, &http.Client{}}
+	return MispCon{proto, host, apiKey, &http.Client{}}
+}
+
+func (mc MispCon) buildURL(path ...string) string {
+	for i := range path {
+		path[i] = strings.TrimLeft(path[i], "/")
+	}
+	return fmt.Sprintf("%s://%s/%s", mc.Proto, mc.Host, strings.Join(path, "/"))
+}
+
+func (mc MispCon) prepareRequest(method, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, body)
+	req.Header.Add("Authorization", mc.APIKey)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("User-Agent", fmt.Sprintf("GolangMisp/%s (https://github.com/0xrawsec/golang-misp)", version))
+	return req, err
 }
 
 func (mc MispCon) postSearch(kind string, mq *MispQuery) ([]byte, error) {
-	fullURL := fmt.Sprintf("%s://%s/%s%s", mc.Proto, mc.Host, kind, mc.RestAPIURL)
-	pReq, err := http.NewRequest("POST", fullURL, bytes.NewReader((*mq).Prepare()))
+	fullURL := mc.buildURL(kind, "restSearch", "download")
+	pReq, err := mc.prepareRequest("POST", fullURL, bytes.NewReader((*mq).Prepare()))
 	if err != nil {
 		return []byte{}, err
 	}
-	pReq.Header.Add("Authorization", mc.APIKey)
-	pReq.Header.Add("Content-Type", "application/json")
-	pReq.Header.Add("Accept", "application/json")
+	if err != nil {
+		return []byte{}, err
+	}
 	logRequest(pReq)
-	if err != nil {
-		return []byte{}, err
-	}
 	pResp, err := mc.Client.Do(pReq)
 	if err != nil {
 		return []byte{}, err
 	}
 	defer pResp.Body.Close()
 
-	respBody, err := ioutil.ReadAll(pResp.Body)
-	if err != nil {
-		panic(err)
-	}
+	respBody := readAllOrPanic(pResp.Body)
 	switch pResp.StatusCode {
 	case 200:
 		return respBody, err
@@ -400,4 +436,43 @@ func (mc MispCon) Search(mq MispQuery) MispResponse {
 		return mer
 	}
 	return EmptyMispResponse{}
+}
+
+// TextExport text export API wrapper https://<misp url>/attributes/text/download/
+// The wrapper takes care of removing the duplicated entries
+// @flags: the list of flags to use for the query
+func (mc MispCon) TextExport(flags ...string) (out []string, err error) {
+	path := make([]string, 0)
+	path = append(path, "attributes", "text", "download")
+	path = append(path, flags...)
+
+	url := mc.buildURL(path...)
+
+	out = make([]string, 0)
+
+	pReq, err := mc.prepareRequest("GET", url, new(bytes.Buffer))
+	if err != nil {
+		return
+	}
+	logRequest(pReq)
+	pResp, err := mc.Client.Do(pReq)
+	if err != nil {
+		return
+	}
+	defer pResp.Body.Close()
+	switch pResp.StatusCode {
+	case 200:
+		// used to remove duplicates
+		marked := datastructs.NewSyncedSet()
+		for line := range readers.Readlines(pResp.Body) {
+			txt := string(line)
+			if !marked.Contains(txt) {
+				out = append(out, txt)
+			}
+			marked.Add(txt)
+		}
+	default:
+		return out, MispError{pResp.StatusCode, string(readAllOrPanic(pResp.Body))}
+	}
+	return
 }
