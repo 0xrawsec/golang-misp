@@ -271,7 +271,7 @@ func (ma MispAttribute) Timestamp() time.Time {
 type MispConfig struct {
 	Proto  string `json:"protocol"`
 	Host   string `json: "host"`
-	APIKey string `json: "api-key`
+	APIKey string `json: "api-key"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
